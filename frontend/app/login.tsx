@@ -27,7 +27,7 @@ export default function LoginScreen() {
     }
 
     try {
-      console.log("Tentative de connexion vers le serveur...");
+      console.log("Tentative de connexion vers le serveur... testtttttt");
 
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
