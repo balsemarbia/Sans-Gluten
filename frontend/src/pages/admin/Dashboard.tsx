@@ -123,7 +123,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl shadow-md p-6 text-white">
           <h3 className="text-xl font-bold mb-2">Ajouter un produit</h3>
           <p className="text-primary-100 mb-4">Créez un nouveau produit pour votre boutique</p>
@@ -145,6 +145,18 @@ export default function Dashboard() {
           >
             <Plus className="w-5 h-5" />
             Nouvelle recette
+          </Link>
+        </div>
+
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-md p-6 text-white">
+          <h3 className="text-xl font-bold mb-2">Gérer les commandes</h3>
+          <p className="text-blue-100 mb-4">Suivez et mettez à jour les commandes</p>
+          <Link
+            to="/admin/orders"
+            className="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
+          >
+            <ShoppingBag className="w-5 h-5" />
+            Voir les commandes
           </Link>
         </div>
       </div>

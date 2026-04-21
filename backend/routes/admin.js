@@ -4,13 +4,30 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Recipe = require('../models/Recipe');
 const User = require('../models/User');
-const auth = require('../middleware/authMiddleware');
+const jwt = require('jsonwebtoken');
 
 // Middleware pour vérifier si l'utilisateur est admin
-const adminAuth = (req, res, next) => {
-    // Pour l'instant, on suppose que tous les utilisateurs connectés sont admin
-    // Dans un vrai projet, vous devriez ajouter un champ "role" au User model
-    auth(req, res, next);
+const adminAuth = async (req, res, next) => {
+    const token = req.header('x-auth-token');
+
+    if (!token) {
+        return res.status(401).json({ message: "Accès refusé. Connectez-vous d'abord." });
+    }
+
+    try {
+        const verified = jwt.verify(token, process.env.JWT_SECRET || 'TON_CODE_SECRET_PFE');
+        req.user = verified;
+
+        // Vérifier si l'utilisateur a le rôle admin
+        const user = await User.findById(req.user.id);
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ message: "Accès refusé. Administration uniquement." });
+        }
+
+        next();
+    } catch (err) {
+        res.status(401).json({ message: "Session invalide ou expirée." });
+    }
 };
 
 // ROUTE : Statistiques du dashboard
@@ -100,6 +117,31 @@ router.get('/users', adminAuth, async (req, res) => {
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: "Erreur lors de la récupération des utilisateurs." });
+    }
+});
+
+// ROUTE : Promouvoir un utilisateur en admin
+router.put('/users/:id/role', adminAuth, async (req, res) => {
+    try {
+        const { role } = req.body;
+
+        if (!['user', 'admin'].includes(role)) {
+            return res.status(400).json({ message: "Rôle invalide." });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { role },
+            { new: true }
+        ).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ message: "Utilisateur non trouvé." });
+        }
+
+        res.json({ message: "Rôle mis à jour !", user });
+    } catch (error) {
+        res.status(500).json({ message: "Erreur lors de la mise à jour du rôle." });
     }
 });
 

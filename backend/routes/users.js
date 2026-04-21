@@ -18,6 +18,20 @@ router.get('/profile', auth, async (req, res) => {
     }
 });
 
+// ROUTE : Obtenir le rôle de l'utilisateur connecté
+router.get('/role', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('role');
+        if (!user) {
+            return res.status(404).json({ message: "Utilisateur non trouvé." });
+        }
+        res.json({ role: user.role || 'user' });
+    } catch (error) {
+        console.error("Erreur rôle:", error);
+        res.status(500).json({ message: "Erreur lors de la récupération du rôle." });
+    }
+});
+
 // ROUTE : Mettre à jour le profil de l'utilisateur connecté
 router.put('/profile', auth, async (req, res) => {
     try {

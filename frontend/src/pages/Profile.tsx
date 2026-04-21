@@ -1,13 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { apiCall, getToken, removeToken } from '@/constants/api';
 import { useState, useEffect } from 'react';
-import { User, ShoppingBag, LogOut, MapPin, Settings, Package } from 'lucide-react';
+import { User, ShoppingBag, LogOut, MapPin, Settings, Package, Shield } from 'lucide-react';
 
 interface UserProfile {
   _id: string;
   nom: string;
   email: string;
   telephone?: string;
+  role?: string;
 }
 
 interface Order {
@@ -131,6 +132,15 @@ export default function Profile() {
                 <Settings className="w-5 h-5" />
                 Paramètres
               </Link>
+              {user.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="flex items-center gap-3 text-primary-600 hover:text-primary-700 py-2 font-semibold"
+                >
+                  <Shield className="w-5 h-5" />
+                  Administration
+                </Link>
+              )}
             </div>
 
             <button
