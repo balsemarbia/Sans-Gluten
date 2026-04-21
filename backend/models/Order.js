@@ -11,7 +11,14 @@ const orderSchema = new mongoose.Schema({
         }
     ],
     total: { type: Number, required: true },
-    statut: { type: String, default: 'En attente' }, // Pour le suivi de commande
+    statut: { type: String, default: 'En attente' },
+    adresse: {
+        nom: String,
+        rue: String,
+        ville: String,
+        codePostal: String,
+        telephone: String
+    },
     date: { type: Date, default: Date.now }
 });
 

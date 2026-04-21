@@ -7,18 +7,17 @@ const jwt = require('jsonwebtoken');
 // ROUTE : Inscription
 router.post('/register', async (req, res) => {
     try {
-        // Log pour voir ce que le frontend envoie réellement
         console.log("📥 Données reçues pour inscription:", req.body);
 
-        const { nom, prenom, age, genre, region, telephone, email, password } = req.body;
+        const { nom, email, password, prenom, telephone } = req.body;
 
-        // 1. Vérification des champs vides
+        // 1. Vérification des champs obligatoires
         if (!email || !password || !nom) {
             return res.status(400).json({ message: "Les champs obligatoires sont manquants." });
         }
 
         // 2. Vérifier si l'utilisateur existe déjà
-        let user = await User.findOne({ email: email.toLowerCase() }); // On compare en minuscule
+        let user = await User.findOne({ email: email.toLowerCase() });
         if (user) {
             console.log("❌ Email déjà utilisé:", email);
             return res.status(400).json({ message: "Cet email est déjà utilisé." });
@@ -31,22 +30,34 @@ router.post('/register', async (req, res) => {
         // 4. Création du nouvel utilisateur
         const newUser = new User({
             nom,
-            prenom,
-            age: Number(age), // On s'assure que c'est un nombre pour MongoDB
-            genre,
-            region,
-            telephone,
+            prenom: prenom || nom, // Utiliser nom comme prenom si non fourni
             email: email.toLowerCase(),
-            password: hashedPassword
+            password: hashedPassword,
+            telephone
         });
 
         await newUser.save();
-        console.log("✅ Utilisateur créé avec succès dans la base !");
-        res.status(201).json({ message: "Utilisateur créé ! 🎉" });
+        console.log("✅ Utilisateur créé avec succès !");
+
+        // 5. Création du token pour connexion automatique
+        const token = jwt.sign(
+            { id: newUser._id },
+            process.env.JWT_SECRET || 'TON_CODE_SECRET_PFE',
+            { expiresIn: '24h' }
+        );
+
+        res.status(201).json({
+            message: "Compte créé avec succès !",
+            token,
+            user: {
+                id: newUser._id,
+                nom: newUser.nom,
+                email: newUser.email
+            }
+        });
 
     } catch (error) {
         console.error("🔥 Erreur Register:", error.message);
-        // Si c'est une erreur de validation Mongoose
         if (error.name === 'ValidationError') {
             return res.status(400).json({ message: "Données invalides : " + error.message });
         }
@@ -68,14 +79,18 @@ router.post('/login', async (req, res) => {
 
         // CRÉATION DU TOKEN
         const token = jwt.sign(
-            { id: user._id }, 
+            { id: user._id },
             process.env.JWT_SECRET || 'TON_CODE_SECRET_PFE',
             { expiresIn: '24h' }
         );
 
-        res.status(200).json({ 
+        res.status(200).json({
             token,
-            user: { id: user._id, nom: user.nom, prenom: user.prenom } 
+            user: {
+                id: user._id,
+                nom: user.nom,
+                email: user.email
+            }
         });
     } catch (error) {
         console.error("🔥 Erreur Login:", error);

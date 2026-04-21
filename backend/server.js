@@ -19,13 +19,26 @@ app.use((req, res, next) => {
 // --- IMPORTATION DES ROUTES ---
 const authRoutes = require('./routes/auth');
 const orderRoutes = require('./routes/orders');
+const productRoutes = require('./routes/products');
+const recipeRoutes = require('./routes/recipes');
+const favoriteRoutes = require('./routes/favorites');
+const addressRoutes = require('./routes/addresses');
+const userRoutes = require('./routes/users');
+const adminRoutes = require('./routes/admin');
 
 // --- UTILISATION DES ROUTES ---
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/recipes', recipeRoutes);
+app.use('/api/favorites', favoriteRoutes);
+app.use('/api/addresses', addressRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 // --- CONNEXION À MONGODB ---
-mongoose.connect('mongodb://127.0.0.1:27017/pfe_sans_gluten')
+const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/pfe_sans_gluten';
+mongoose.connect(mongoUri)
   .then(() => console.log("Connexion à MongoDB réussie ! ✅"))
   .catch(err => console.error("Erreur de connexion MongoDB :", err));
 
