@@ -114,24 +114,25 @@ export default function Home() {
       <section className="py-8 bg-white shadow-sm">
         <div className="container">
           <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Chercher un produit, une recette..."
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+            <div className="relative">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Rechercher des produits ou des recettes..."
+                className="w-full pl-14 pr-36 py-4 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-lg shadow-sm transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
               <button
                 type="submit"
-                className="bg-primary-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-primary-600 transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary-500 hover:bg-primary-600 text-white px-6 py-2.5 rounded-full font-semibold transition-colors shadow-md"
               >
                 Rechercher
               </button>
             </div>
+            <p className="text-center text-sm text-gray-500 mt-2">
+              🔍 Trouvez vos produits et recettes sans gluten préférés
+            </p>
           </form>
         </div>
       </section>
