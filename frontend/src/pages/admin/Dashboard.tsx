@@ -13,9 +13,18 @@ interface Stats {
 interface RecentOrder {
   _id: string;
   total: number;
+  subtotal?: number;
+  shippingCost?: number;
+  discount?: number;
+  coupon?: {
+    code: string;
+    discount: number;
+  };
   statut: string;
   createdAt: string;
-  user: { nom: string };
+  user?: { nom: string };
+  userId?: { nom: string };
+  adresse?: { nom: string };
 }
 
 export default function Dashboard() {
@@ -190,7 +199,7 @@ export default function Dashboard() {
                 {recentOrders.map((order) => (
                   <tr key={order._id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4 font-medium">#{order._id.slice(-6).toUpperCase()}</td>
-                    <td className="py-3 px-4">{order.user?.nom || 'N/A'}</td>
+                    <td className="py-3 px-4">{order.user?.nom || order.userId?.nom || order.adresse?.nom || 'N/A'}</td>
                     <td className="py-3 px-4">
                       {new Date(order.createdAt).toLocaleDateString('fr-FR')}
                     </td>

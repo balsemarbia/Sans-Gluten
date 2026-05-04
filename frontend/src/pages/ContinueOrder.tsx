@@ -1,12 +1,8 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '@/context/CartContext';
 import { apiCall, getToken } from '@/constants/api';
 import { useState, useEffect } from 'react';
-import { MapPin, CreditCard, ArrowLeft, ArrowRight, Save } from 'lucide-react';
-import CouponCode from '@/components/checkout/CouponCode';
-import ShippingOptions, { ShippingOption } from '@/components/checkout/ShippingOptions';
-
-const SHIPPING_COST = 7;
+import { MapPin, CreditCard, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 
 interface SavedOrderData {
   items: Array<{
@@ -27,12 +23,15 @@ interface SavedOrderData {
   savedAt: string;
 }
 
-export default function Checkout() {
+const SHIPPING_COST = 7;
+
+export default function ContinueOrder() {
   const navigate = useNavigate();
-  const { cartItems, getTotal, clearCart } = useCart();
+  const [searchParams] = useSearchParams();
+  const { cartItems, setCartItems, clearCart, getTotal } = useCart();
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [hasSavedData, setHasSavedData] = useState(false);
+  const [restoring, setRestoring] = useState(true);
+  const [savedData, setSavedData] = useState<SavedOrderData | null>(null);
   const [shippingForm, setShippingForm] = useState({
     nom: '',
     adresse: '',
@@ -40,106 +39,104 @@ export default function Checkout() {
     codePostal: '',
     telephone: ''
   });
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | undefined>();
-  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | undefined>();
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'card' | 'wallet'>('cod');
 
   useEffect(() => {
-    // Check if there's saved data
-    const savedOrderJson = localStorage.getItem('incompleteOrder');
-    if (savedOrderJson) {
-      try {
-        const savedData: SavedOrderData = JSON.parse(savedOrderJson);
-        setHasSavedData(true);
-        // Pre-fill form if it matches current cart
-        if (savedData.items.length === cartItems.length &&
-            savedData.total === getTotal()) {
-          setShippingForm(savedData.shippingForm);
-        }
-      } catch (error) {
-        console.error('Error parsing saved order:', error);
-      }
-    }
-  }, [cartItems, getTotal]);
+    loadSavedOrder();
+  }, []);
 
-  const saveProgress = () => {
-    setSaving(true);
+  const loadSavedOrder = () => {
     try {
-      const data: SavedOrderData = {
-        items: cartItems,
-        total: getTotal(),
-        shippingForm,
-        savedAt: new Date().toISOString()
-      };
-      localStorage.setItem('incompleteOrder', JSON.stringify(data));
-      setHasSavedData(true);
-      setTimeout(() => setSaving(false), 500);
+      const savedOrderJson = localStorage.getItem('incompleteOrder');
+      const orderId = searchParams.get('order');
+
+      if (orderId) {
+        // Load from specific order ID (from database)
+        loadOrderFromDB(orderId);
+      } else if (savedOrderJson) {
+        // Load from localStorage
+        const data: SavedOrderData = JSON.parse(savedOrderJson);
+        setSavedData(data);
+        setShippingForm(data.shippingForm);
+        setCartItems(data.items);
+        setRestoring(false);
+      } else {
+        // No saved order found
+        setRestoring(false);
+      }
     } catch (error) {
-      console.error('Error saving progress:', error);
-      setSaving(false);
+      console.error('Error loading saved order:', error);
+      setRestoring(false);
     }
   };
 
-  const handleApplyCoupon = (code: string, discount: number) => {
-    setAppliedCoupon({ code, discount });
-  };
+  const loadOrderFromDB = async (orderId: string) => {
+    try {
+      const token = getToken();
+      if (!token) {
+        navigate('/login', { state: { from: { pathname: '/continue-order' } } });
+        return;
+      }
 
-  const handleShippingChange = (option: ShippingOption) => {
-    setSelectedShipping(option);
-  };
+      const order = await apiCall(`/orders/${orderId}`, 'GET', undefined, token);
 
-  const calculateTotal = () => {
-    const subtotal = getTotal();
-    const shippingCost = selectedShipping?.price || SHIPPING_COST;
-    const discount = appliedCoupon
-      ? (appliedCoupon.discount / 100) * subtotal
-      : 0;
-    return {
-      subtotal,
-      shippingCost,
-      discount,
-      total: subtotal + shippingCost - discount
-    };
-  };
+      if (order.statut === 'Brouillon' || order.statut === 'En cours') {
+        // Restore items to cart
+        const items = order.items.map((item: any) => ({
+          id: item.productId?._id || item.productId,
+          nom: item.nom,
+          prix: item.prix,
+          quantite: item.quantite,
+          image: item.productId?.image || ''
+        }));
+        setCartItems(items);
 
-  if (cartItems.length === 0) {
-    return (
-      <div className="container py-16">
-        <div className="max-w-md mx-auto text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Panier vide</h1>
-          <p className="text-gray-600 mb-6">Ajoutez des produits avant de passer la commande</p>
-          <Link
-            to="/products"
-            className="inline-flex items-center gap-2 bg-primary-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-primary-600 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Retour à la boutique
-          </Link>
-        </div>
-      </div>
-    );
-  }
+        // Set shipping form
+        const formData = {
+          nom: order.adresse?.nom || '',
+          adresse: order.adresse?.rue || '',
+          ville: order.adresse?.ville || '',
+          codePostal: order.adresse?.codePostal || '',
+          telephone: order.adresse?.telephone || ''
+        };
+        setShippingForm(formData);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-
-    // Validate form fields
-    if (!shippingForm.nom || !shippingForm.adresse || !shippingForm.ville ||
-        !shippingForm.codePostal || !shippingForm.telephone) {
-      alert('Veuillez remplir tous les champs de livraison');
-      return;
+        setSavedData({
+          items,
+          total: order.total,
+          shippingForm: formData,
+          savedAt: order.date
+        });
+      } else {
+        alert('Cette commande ne peut pas être modifiée.');
+        navigate('/profile');
+      }
+    } catch (error: any) {
+      console.error('Error loading order:', error);
+      alert('Erreur lors du chargement de la commande');
+      navigate('/profile');
+    } finally {
+      setRestoring(false);
     }
+  };
+
+  const discardDraft = () => {
+    localStorage.removeItem('incompleteOrder');
+    clearCart();
+    navigate('/products');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     const token = getToken();
     if (!token) {
-      navigate('/login', { state: { from: { pathname: '/checkout' } } });
+      navigate('/login', { state: { from: { pathname: '/continue-order' } } });
       return;
     }
 
     setLoading(true);
 
     try {
-      const totals = calculateTotal();
       const orderData = {
         items: cartItems.map(item => ({
           produit: item.id,
@@ -151,14 +148,8 @@ export default function Checkout() {
           ville: shippingForm.ville,
           codePostal: shippingForm.codePostal,
           telephone: shippingForm.telephone
-        },
-        couponCode: appliedCoupon?.code || null,
-        discount: totals.discount,
-        shippingCost: totals.shippingCost
+        }
       };
-
-      console.log('Sending order data:', orderData);
-      console.log('Order totals:', totals);
 
       const response = await apiCall('/orders', 'POST', orderData, token);
       localStorage.removeItem('incompleteOrder');
@@ -172,6 +163,47 @@ export default function Checkout() {
     }
   };
 
+  if (restoring) {
+    return (
+      <div className="container py-16">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+          <p className="ml-4 text-gray-600">Restauration de votre commande...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!savedData || savedData.items.length === 0) {
+    return (
+      <div className="container py-16">
+        <div className="max-w-md mx-auto text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Aucune commande à poursuivre</h1>
+          <p className="text-gray-600 mb-6">
+            Vous n'avez aucune commande en cours. Commencez vos achats dès maintenant !
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Link
+              to="/products"
+              className="inline-flex items-center gap-2 bg-primary-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-primary-600 transition-colors"
+            >
+              Voir les produits
+            </Link>
+            <Link
+              to="/cart"
+              className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-8 py-3 rounded-full font-semibold hover:bg-gray-200 transition-colors"
+            >
+              Mon panier
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const savedDate = new Date(savedData.savedAt);
+  const timeDiff = Math.floor((Date.now() - savedDate.getTime()) / (1000 * 60 * 60 * 24));
+
   return (
     <div className="container py-8">
       <Link
@@ -182,21 +214,39 @@ export default function Checkout() {
         Retour au panier
       </Link>
 
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Finaliser la commande</h1>
+      {/* Saved Order Notice */}
+      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <MapPin className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-blue-900">Commande sauvegardée</p>
+              <p className="text-sm text-blue-700">
+                {timeDiff === 0
+                  ? 'Sauvegardée aujourd\'hui'
+                  : timeDiff === 1
+                  ? 'Sauvegardée hier'
+                  : `Sauvegardée il y a ${timeDiff} jours`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={discardDraft}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Supprimer
+          </button>
+        </div>
+      </div>
+
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Poursuivre ma commande</h1>
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Checkout Form */}
         <div className="flex-1">
-          {/* Save Progress Notice */}
-          {hasSavedData && (
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
-              <div className="flex items-center gap-3">
-                <Save className="w-5 h-5 text-green-600" />
-                <p className="text-green-900 font-medium">Votre progression est sauvegardée automatiquement</p>
-              </div>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-md p-6 mb-6">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
               <MapPin className="w-6 h-6 text-primary-600" />
@@ -213,7 +263,6 @@ export default function Checkout() {
                   value={shippingForm.nom}
                   onChange={(e) => {
                     setShippingForm({ ...shippingForm, nom: e.target.value });
-                    saveProgress();
                   }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
@@ -228,8 +277,7 @@ export default function Checkout() {
                   value={shippingForm.adresse}
                   onChange={(e) => {
                     setShippingForm({ ...shippingForm, adresse: e.target.value });
-                    saveProgress();
-                  }}
+                                      }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
@@ -244,8 +292,7 @@ export default function Checkout() {
                     value={shippingForm.ville}
                     onChange={(e) => {
                       setShippingForm({ ...shippingForm, ville: e.target.value });
-                      saveProgress();
-                    }}
+                                          }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -258,8 +305,7 @@ export default function Checkout() {
                     value={shippingForm.codePostal}
                     onChange={(e) => {
                       setShippingForm({ ...shippingForm, codePostal: e.target.value });
-                      saveProgress();
-                    }}
+                                          }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -274,30 +320,12 @@ export default function Checkout() {
                   value={shippingForm.telephone}
                   onChange={(e) => {
                     setShippingForm({ ...shippingForm, telephone: e.target.value });
-                    saveProgress();
-                  }}
+                                      }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
           </form>
-
-          {/* Coupon Code */}
-          <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
-            <CouponCode
-              onApplyCoupon={handleApplyCoupon}
-              appliedCoupon={appliedCoupon}
-            />
-          </div>
-
-          {/* Shipping Options */}
-          <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
-            <ShippingOptions
-              onShippingChange={handleShippingChange}
-              selectedOption={selectedShipping}
-              subtotal={getTotal()}
-            />
-          </div>
 
           <div className="bg-white rounded-2xl shadow-md p-6">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -322,7 +350,7 @@ export default function Checkout() {
             <h2 className="text-xl font-bold mb-6">Récapitulatif</h2>
 
             <div className="space-y-4 mb-6">
-              {cartItems.map((item) => (
+              {savedData.items.map((item) => (
                 <div key={item.id} className="flex gap-3">
                   <img
                     src={item.image}
@@ -343,27 +371,15 @@ export default function Checkout() {
             <div className="border-t pt-4 space-y-3">
               <div className="flex justify-between text-gray-600">
                 <span>Sous-total</span>
-                <span>{calculateTotal().subtotal.toFixed(3)} DT</span>
+                <span>{savedData.total.toFixed(3)} DT</span>
               </div>
-              {selectedShipping && (
-                <div className="flex justify-between text-gray-600">
-                  <span>Livraison ({selectedShipping.name})</span>
-                  <span>
-                    {selectedShipping.price === 0
-                      ? 'Gratuit'
-                      : `${selectedShipping.price.toFixed(3)} DT`}
-                  </span>
-                </div>
-              )}
-              {appliedCoupon && (
-                <div className="flex justify-between text-green-600">
-                  <span>Réduction ({appliedCoupon.code})</span>
-                  <span>-{calculateTotal().discount.toFixed(3)} DT</span>
-                </div>
-              )}
+              <div className="flex justify-between text-gray-600">
+                <span>Livraison</span>
+                <span>{SHIPPING_COST.toFixed(3)} DT</span>
+              </div>
               <div className="border-t pt-3 flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span className="text-primary-600">{calculateTotal().total.toFixed(3)} DT</span>
+                <span className="text-primary-600">{(savedData.total + SHIPPING_COST).toFixed(3)} DT</span>
               </div>
             </div>
 

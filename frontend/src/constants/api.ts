@@ -1,8 +1,8 @@
 // API Configuration
-export const API_BASE_URL = 'http://192.168.1.17:5000/api';
+// export const API_BASE_URL = 'http://192.168.1.17:5000/api';
 
 // Pour le développement local sur PC, utilisez localhost
-// export const API_BASE_URL = 'http://localhost:5000/api';
+export const API_BASE_URL = 'http://localhost:5000/api';
 
 // Helper function for API calls
 export const apiCall = async (

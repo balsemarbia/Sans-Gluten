@@ -1,7 +1,8 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiCall, getToken, removeToken } from '@/constants/api';
 import { useState, useEffect } from 'react';
-import { User, ShoppingBag, LogOut, MapPin, Settings, Package, Shield } from 'lucide-react';
+import { User, ShoppingBag, LogOut, MapPin, Settings, Package, Shield, RefreshCw } from 'lucide-react';
+import OrderHistory from '@/components/orders/OrderHistory';
 
 interface UserProfile {
   _id: string;
@@ -14,25 +15,70 @@ interface UserProfile {
 interface Order {
   _id: string;
   total: number;
+  subtotal?: number;
+  shippingCost?: number;
+  discount?: number;
+  coupon?: {
+    code: string;
+    discount: number;
+  };
   statut: string;
+  date?: string;
   createdAt: string;
-  items: Array<{ nom: string; quantite: number; prix: number }>;
+  items: Array<{ nom: string; quantite: number; prix: number; image?: string }>;
+  adresse?: {
+    nom: string;
+    rue: string;
+    ville: string;
+    codePostal: string;
+    telephone: string;
+  };
 }
 
 export default function Profile() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasIncompleteOrder, setHasIncompleteOrder] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
+    checkIncompleteOrder();
   }, []);
+
+  useEffect(() => {
+    // Show success message if coming from an order
+    const orderId = searchParams.get('order');
+    if (orderId) {
+      // Could show a success toast here
+      console.log('Order completed:', orderId);
+    }
+  }, [searchParams]);
+
+  const checkIncompleteOrder = () => {
+    try {
+      const savedOrderJson = localStorage.getItem('incompleteOrder');
+      if (savedOrderJson) {
+        const savedData = JSON.parse(savedOrderJson);
+        const savedDate = new Date(savedData.savedAt);
+        const daysDiff = Math.floor((Date.now() - savedDate.getTime()) / (1000 * 60 * 60 * 24));
+        // Show notice if saved within last 7 days
+        if (daysDiff < 7) {
+          setHasIncompleteOrder(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking incomplete order:', error);
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
       const token = getToken();
+      console.log('Profile - Token:', token ? 'exists' : 'missing');
       if (!token) {
         navigate('/login');
         return;
@@ -41,8 +87,11 @@ export default function Profile() {
       const userData = await apiCall('/users/profile', 'GET', undefined, token);
       setUser(userData);
 
+      console.log('Profile - Fetching orders from /orders/my-orders...');
       const ordersData = await apiCall('/orders/my-orders', 'GET', undefined, token);
-      setOrders(ordersData);
+      console.log('Profile - Received orders:', ordersData);
+      console.log('Profile - Number of orders:', Array.isArray(ordersData) ? ordersData.length : 'not an array');
+      setOrders(Array.isArray(ordersData) ? ordersData : []);
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -90,6 +139,42 @@ export default function Profile() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
+        {/* Incomplete Order Notice */}
+        {hasIncompleteOrder && (
+          <div className="lg:col-span-3">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <ShoppingBag className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-blue-900">Commande en cours</h3>
+                    <p className="text-blue-700 text-sm">
+                      Vous avez une commande non finalisée. Continuez vos achats où vous vous êtes arrêté !
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => localStorage.removeItem('incompleteOrder')}
+                    className="px-4 py-2 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+                  >
+                    Ignorer
+                  </button>
+                  <Link
+                    to="/continue-order"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Continuer ma commande
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* User Info Card */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-md p-6">
@@ -112,7 +197,7 @@ export default function Profile() {
                 Mes informations
               </Link>
               <Link
-                to="/profile/orders"
+                to="/orders"
                 className="flex items-center gap-3 text-gray-700 hover:text-primary-600 py-2"
               >
                 <Package className="w-5 h-5" />
@@ -158,62 +243,10 @@ export default function Profile() {
           <div className="bg-white rounded-2xl shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
               <ShoppingBag className="w-6 h-6 text-primary-600" />
-              Commandes récentes
+              Historique des commandes
             </h2>
 
-            {orders.length > 0 ? (
-              <div className="space-y-4">
-                {orders.map((order) => (
-                  <div
-                    key={order._id}
-                    className="border border-gray-200 rounded-xl p-4 hover:border-primary-300 transition-colors"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          Commande #{order._id.slice(-6).toUpperCase()}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {new Date(order.createdAt).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric'
-                          })}
-                        </p>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        order.statut === 'Livré' ? 'bg-green-100 text-green-700' :
-                        order.statut === 'En cours' ? 'bg-yellow-100 text-yellow-700' :
-                        order.statut === 'Annulé' ? 'bg-red-100 text-red-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {order.statut}
-                      </span>
-                    </div>
-
-                    <div className="border-t pt-3">
-                      <p className="text-sm text-gray-600 mb-2">
-                        {order.items.length} article{order.items.length > 1 ? 's' : ''}
-                      </p>
-                      <p className="font-bold text-primary-600">
-                        Total: {order.total.toFixed(3)} DT
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600 mb-4">Aucune commande pour le moment</p>
-                <Link
-                  to="/products"
-                  className="text-primary-600 font-semibold hover:text-primary-700"
-                >
-                  Découvrir nos produits
-                </Link>
-              </div>
-            )}
+            <OrderHistory orders={orders} />
           </div>
         </div>
       </div>

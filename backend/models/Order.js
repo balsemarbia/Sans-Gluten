@@ -10,6 +10,13 @@ const orderSchema = new mongoose.Schema({
             prix: Number
         }
     ],
+    subtotal: { type: Number, required: true },
+    shippingCost: { type: Number, default: 0 },
+    coupon: {
+        code: String,
+        discount: Number
+    },
+    discount: { type: Number, default: 0 },
     total: { type: Number, required: true },
     statut: { type: String, default: 'En attente' },
     adresse: {

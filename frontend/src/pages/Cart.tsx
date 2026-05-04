@@ -1,10 +1,35 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '@/context/CartContext';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function Cart() {
   const navigate = useNavigate();
   const { cartItems, removeFromCart, updateQuantity, getTotal, getItemCount } = useCart();
+  const [hasIncompleteOrder, setHasIncompleteOrder] = useState(false);
+
+  useEffect(() => {
+    checkIncompleteOrder();
+  }, [cartItems]);
+
+  const checkIncompleteOrder = () => {
+    try {
+      const savedOrderJson = localStorage.getItem('incompleteOrder');
+      if (savedOrderJson && cartItems.length === 0) {
+        const savedData = JSON.parse(savedOrderJson);
+        const savedDate = new Date(savedData.savedAt);
+        const daysDiff = Math.floor((Date.now() - savedDate.getTime()) / (1000 * 60 * 60 * 24));
+        // Show notice if saved within last 7 days
+        if (daysDiff < 7) {
+          setHasIncompleteOrder(true);
+        }
+      } else {
+        setHasIncompleteOrder(false);
+      }
+    } catch (error) {
+      console.error('Error checking incomplete order:', error);
+    }
+  };
 
   const handleQuantityChange = (id: string, delta: number) => {
     updateQuantity(id, delta);
@@ -29,6 +54,20 @@ export default function Cart() {
           <p className="text-gray-600 mb-6">
             Ajoutez des produits pour commencer vos achats
           </p>
+
+          {hasIncompleteOrder && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <p className="text-blue-900 font-medium mb-3">Vous avez une commande en cours ?</p>
+              <Link
+                to="/continue-order"
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Continuer ma commande
+              </Link>
+            </div>
+          )}
+
           <Link
             to="/products"
             className="inline-flex items-center gap-2 bg-primary-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-primary-600 transition-colors"

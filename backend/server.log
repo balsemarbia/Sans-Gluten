@@ -1,0 +1,7 @@
+[dotenv@17.3.1] injecting env (4) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+
+  🚀 Serveur démarré !
+  🌐 Local: http://localhost:5000
+  📶 Réseau: http://192.168.1.17:5000
+  
+Connexion à MongoDB réussie ! ✅

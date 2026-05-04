@@ -51,6 +51,23 @@ router.get('/stats', adminAuth, async (req, res) => {
     }
 });
 
+// ROUTE : Récupérer une commande par ID (pour admin) - DOIT ÊTRE AVANT /orders
+router.get('/orders/:id', adminAuth, async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id)
+            .populate('userId', 'nom prenom email telephone');
+
+        if (!order) {
+            return res.status(404).json({ message: "Commande non trouvée." });
+        }
+
+        res.json(order);
+    } catch (error) {
+        console.error('Erreur récupération commande:', error);
+        res.status(500).json({ message: "Erreur lors de la récupération de la commande." });
+    }
+});
+
 // ROUTE : Récupérer toutes les commandes (pour admin)
 router.get('/orders', adminAuth, async (req, res) => {
     try {
@@ -69,7 +86,7 @@ router.put('/orders/:id/status', adminAuth, async (req, res) => {
     try {
         const { statut } = req.body;
 
-        const validStatuses = ['En attente', 'En préparation', 'Expédiée', 'Livré', 'Annulée'];
+        const validStatuses = ['En attente', 'En cours', 'En préparation', 'Expédiée', 'Livré', 'Annulée'];
         if (!validStatuses.includes(statut)) {
             return res.status(400).json({ message: "Statut invalide." });
         }

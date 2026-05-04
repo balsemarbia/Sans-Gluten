@@ -9,10 +9,13 @@ import Cart from './pages/Cart';
 import Recipes from './pages/Recipes';
 import RecipeDetail from './pages/RecipeDetail';
 import Favorites from './pages/Favorites';
+import Wishlist from './pages/Wishlist';
 import Profile from './pages/Profile';
+import Orders from './pages/Orders';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Checkout from './pages/Checkout';
+import ContinueOrder from './pages/ContinueOrder';
 import AdminAuth from './components/admin/AdminAuth';
 import AdminLayout from './components/layout/AdminLayout';
 import AdminLogin from './pages/admin/Login';
@@ -20,6 +23,7 @@ import Dashboard from './pages/admin/Dashboard';
 import ManageProducts from './pages/admin/ManageProducts';
 import ManageRecipes from './pages/admin/ManageRecipes';
 import OrdersTracker from './pages/admin/OrdersTracker';
+import OrderDetail from './pages/admin/OrderDetail';
 
 // Main layout wrapper
 function MainLayout() {
@@ -57,10 +61,13 @@ function App() {
             <Route path="recipes/:id" element={<RecipeDetail />} />
             <Route path="cart" element={<Cart />} />
             <Route path="favorites" element={<Favorites />} />
+            <Route path="wishlist" element={<Wishlist />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="orders" element={<Orders />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="checkout" element={<Checkout />} />
+            <Route path="continue-order" element={<ContinueOrder />} />
           </Route>
 
           {/* Admin login - separate layout */}
@@ -72,6 +79,7 @@ function App() {
             <Route path="products" element={<ManageProducts />} />
             <Route path="recipes" element={<ManageRecipes />} />
             <Route path="orders" element={<OrdersTracker />} />
+            <Route path="orders/:id" element={<OrderDetail />} />
           </Route>
 
           {/* Catch all - redirect to home */}
